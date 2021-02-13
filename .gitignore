@@ -1,0 +1,15 @@
+*.o
+src/cscope
+src/fscanner.c
+src/egrep.c
+src/egrep.h
+Makefile
+config.h
+config.log
+config.status
+contrib/Makefile
+doc/Makefile
+src/.deps/
+src/Makefile
+stamp-h1
+cscope.*
