@@ -578,8 +578,12 @@ egrep(char *file, FILE *output, char *format)
     int in_line;
     FILE *fptr;
 
-    if ((fptr = myfopen(file, "r")) == NULL) 
+    do_pp = YES;
+    if ((fptr = myfopen(file, "r")) == NULL) {
+	do_pp = NO;
 	return(-1);
+    }
+    do_pp = NO;
 
     lnum = 1;
     p = buf;

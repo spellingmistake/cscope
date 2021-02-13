@@ -255,6 +255,9 @@ extern	long	totalterms;	/* total inverted index terms */
 extern	BOOL	trun_syms;	/* truncate symbols to 8 characters */
 extern	char	tempstring[TEMPSTRING_LEN + 1]; /* global dummy string buffer */
 extern	char	*tmpdir;	/* temporary directory */
+extern  char	*preprocessor[4];/* preprocessor binary and arguments */
+extern	BOOL	do_pp;		/* whether to use the preprocessor (avoids adding a
+				 * new parameter to the *open functions) */
 
 /* command.c global data */
 extern	BOOL	caseless;	/* ignore letter case when searching */

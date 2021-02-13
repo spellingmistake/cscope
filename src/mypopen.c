@@ -102,7 +102,22 @@ myfopen(char *path, char *mode)
     /* opens a file pointer and then sets close-on-exec for the file */
     FILE *fp;
 
-    fp = fopen(path, mode);
+	if (do_pp && preprocessor[0]) {
+		pid_t pid = vfork();
+
+		if (0 == pid) {
+			preprocessor[1] = path;
+			execvp(preprocessor[0], &preprocessor[0]);
+		} else {
+			waitpid(pid, NULL, 0);
+		}
+
+		fp = fopen(preprocessor[2], mode);
+	}
+	else
+	{
+		fp = fopen(path, mode);
+	}
 
 #ifdef SETMODE
     if (fp && ! strchr(mode, 'b')) {

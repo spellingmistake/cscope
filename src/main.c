@@ -56,6 +56,8 @@
 #ifdef HAVE_GETOPT_LONG 
 #include <getopt.h>
 #endif
+#include <string.h>
+#include <errno.h>
 
 /* defaults for unset environment variables */
 #define	EDITOR	"vi"
@@ -65,6 +67,7 @@
 #define TMPDIR	"/tmp"
 #ifndef DFLT_INCDIR
 #define DFLT_INCDIR "/usr/include"
+#define PP_PATTERN  "cscope_pp_out.XXXXXX"
 #endif
 
 /* note: these digraph character frequencies were calculated from possible 
@@ -109,6 +112,10 @@ BOOL	trun_syms;		/* truncate symbols to 8 characters */
 char	tempstring[TEMPSTRING_LEN + 1]; /* use this as a buffer, instead of 'yytext', 
 				 * which had better be left alone */
 char	*tmpdir;		/* temporary directory */
+char	*preprocessor[4];	/* preprocessor binary and args <in>, <out> and NULL */
+char	pp_out[PATHLEN + 1];	/* output file for preprocessor */
+BOOL	do_pp;			/* whether to use the preprocessor (avoids adding a
+				 * new parameter to the *open functions) */
 
 static	BOOL	onesearch;		/* one search only in line mode */
 static	char	*reflines;		/* symbol reference lines file */
@@ -153,7 +160,7 @@ char ** parse_options(int *argc, char **argv)
 	
 
 	while ((opt = getopt_long(argcc, argv,
-	       "hVbcCdeF:f:I:i:kLl0:1:2:3:4:5:6:7:8:9:P:p:qRs:TUuvX",
+	       "hVbcCdeF:f:I:i:kLl0:1:2:3:4:5:6:7:8:9:P:p:qRs:TUuvXx:",
 	       lopts, &longind)) != -1) {
 		switch(opt) {
 
@@ -273,6 +280,9 @@ char ** parse_options(int *argc, char **argv)
 		case 's':	/* additional source file directory */
 			sourcedir(optarg);
 			break;
+		case 'x':	/* use preprocessor */
+			preprocessor[0] = optarg;
+			break;
 		}
 	}
 	/*
@@ -293,10 +303,12 @@ main(int argc, char **argv)
     char path[PATHLEN + 1];	/* file path */
     FILE *oldrefs;	/* old cross-reference file */
     char *s;
+	char *pp_pattern;
     int c;
     unsigned int i;
     pid_t pid;
     struct stat	stat_buf;
+	int fd;
 #if defined(KEY_RESIZE) && !defined(__DJGPP__)
     struct sigaction winch_action;
 #endif
@@ -411,6 +423,7 @@ cscope: pattern too long, cannot be > %d characters\n", PATLEN);
 	    case 'P':	/* prepend path to file names */
 	    case 's':	/* additional source file directory */
 	    case 'S':
+		case 'x':	/* use preprocessor */
 		c = *s;
 		if (*++s == '\0' && --argc > 0) {
 		    s = *++argv;
@@ -467,6 +480,9 @@ cscope: reffile too long, cannot be > %d characters\n", sizeof(path) - 3);
 		case 'S':
 		    sourcedir(s);
 		    break;
+		case 'x':	/* use preprocessor */
+		    preprocessor[0] = s;
+		    break;
 		}
 		goto nextarg;
 	    default:
@@ -507,6 +523,18 @@ cscope: Please create the directory or set the environment variable\n\
 cscope: TMPDIR to a valid directory\n");
 	myexit(1);
     }
+
+	if (preprocessor[0]) {
+		pp_pattern = mygetenv("PP_PATTERN", PP_PATTERN);
+		snprintf(pp_out, sizeof(pp_out), "%s/%s", tmpdir, pp_pattern);
+		fd = mkstemp(pp_out);
+		if (-1 == fd) {
+			fprintf(stderr, "failed to open temp file: %s\n", strerror(errno));
+			myexit(1);
+		}
+		close(fd);
+		preprocessor[2] = pp_out;
+	}
 
     /* create the temporary file names */
     orig_umask = umask(S_IRWXG|S_IRWXO);
@@ -1006,6 +1034,7 @@ usage(void)
 {
 	fprintf(stderr, "Usage: cscope [-bcCdehklLqRTuUvV] [-f file] [-F file] [-i file] [-I dir] [-s dir]\n");
 	fprintf(stderr, "              [-p number] [-P path] [-[0-8] pattern] [source files]\n");
+	fprintf(stderr, "              [-x preprocessor]\n");
 }
 
 
@@ -1046,6 +1075,7 @@ longusage(void)
 -u            Unconditionally build the cross-reference file.\n\
 -v            Be more verbose in line mode.\n\
 -V            Print the version number.\n\
+-x binary     Use binary as a preprocessor for input files.\n\
 \n\
 Please see the manpage for more information.\n",
 	      stderr);
@@ -1086,6 +1116,10 @@ myexit(int sig)
 		unlink( reffile );
 		unlink( invname );
 		unlink( invpost );
+	}
+
+	if (preprocessor[2]) {
+		unlink(preprocessor[2]);
 	}
 
 	exit(sig);

@@ -105,12 +105,15 @@ crossref(char *srcfile)
     }
 	
     entry_no = 0;
+    do_pp = YES;
     /* open the source file */
     if ((yyin = myfopen(srcfile, "r")) == NULL) {
 	cannotopen(srcfile);
 	errorsfound = YES;
+	do_pp = NO;
 	return;
     }
+    do_pp = NO;
     filename = srcfile;	/* save the file name for warning messages */
     putfilename(srcfile);	/* output the file name */
     dbputc('\n');
